@@ -4,3 +4,4 @@ git learning~222
 is git version changed?
 新增一个热修分支hot-fix
 这是一个在master 分支的冲突修改
+这是一个在hot-fix的冲突修改
