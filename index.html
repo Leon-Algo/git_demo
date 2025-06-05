@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-T">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orange Cat Pet</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="orange-cat-pet">
+        <img src="images/cat_idle.png" id="cat-image" alt="Orange Cat Pet">
+        <div id="speech-bubble"></div> <!-- Will be used for feedback -->
+        <div id="cat-controls">
+            <button id="resize-btn">Resize</button>
+        </div>
+    </div>
+
+    <!-- Privacy Note -->
+    <div id="privacy-note" style="position: fixed; bottom: 5px; left: 5px; font-size: 10px; color: #777; z-index: 9000;">
+        Note: Screenshots are processed for contextual feedback and are not stored.
+    </div>
+
+    <!-- Chat Dialog -->
+    <div id="chat-dialog" class="hidden">
+        <div id="chat-header">
+            <span>Chat with Cat</span>
+            <button id="chat-close-btn">X</button>
+        </div>
+        <div id="chat-history"></div>
+        <div id="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Talk to the cat...">
+            <button id="chat-send-btn">Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

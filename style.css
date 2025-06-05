@@ -1,0 +1,177 @@
+#orange-cat-pet {
+    position: fixed;
+    width: 200px; /* Default width, can be overridden by JS */
+    height: 300px; /* Default height, can be overridden by JS */
+    background-color: #f0f0f0; /* Temporary background */
+    border: 1px solid #ccc; /* Temporary border */
+    bottom: 10px;
+    right: 10px;
+    cursor: grab;
+}
+
+#cat-controls {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: rgba(255,255,255,0.5);
+    padding: 5px;
+    border-top-left-radius: 5px; /* Optional: nice touch */
+}
+
+#resize-btn {
+    padding: 5px 10px;
+    background-color: #ddd;
+    border: 1px solid #bbb;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#resize-btn:hover {
+    background-color: #ccc;
+}
+
+#cat-image {
+    max-width: 100%;
+    display: block;
+}
+
+#speech-bubble {
+    position: absolute;
+    bottom: 100%; /* Position above the cat */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 10px;
+    width: 150px; /* Or auto, with max-width */
+    text-align: center;
+    opacity: 0; /* Initially hidden, fade in */
+    transition: opacity 0.5s;
+    pointer-events: none; /* So it doesn't interfere with cat dragging */
+    margin-bottom: 5px; /* Add some space between bubble and cat */
+}
+
+#speech-bubble.visible {
+    opacity: 1;
+    pointer-events: auto; /* Allow click for chat later */
+}
+
+#cat-image.happy {
+    transform: scale(1.05); /* Example: slightly larger when happy */
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Add a simple wobble animation */
+@keyframes wobble {
+    0% { transform: rotate(0deg) scale(1.05); }
+    25% { transform: rotate(5deg) scale(1.05); }
+    50% { transform: rotate(-5deg) scale(1.05); }
+    75% { transform: rotate(5deg) scale(1.05); }
+    100% { transform: rotate(0deg) scale(1.05); }
+}
+
+#cat-image.happy-animation {
+    animation: wobble 0.5s ease-in-out;
+}
+
+/* Basic Chat Dialog Styling */
+#chat-dialog {
+    position: fixed; /* Or absolute if positioned relative to cat */
+    bottom: 90px; /* Example positioning - adjust if overlaps with cat */
+    right: 20px;  /* Example positioning */
+    width: 300px;
+    height: 400px;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    z-index: 10000; /* Ensure it's above other elements */
+}
+
+#chat-dialog.hidden {
+    display: none;
+}
+
+#chat-header {
+    padding: 10px;
+    background-color: #eee;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move; /* Optional: if you want to make the chat dialog draggable */
+}
+
+#chat-history {
+    flex-grow: 1;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: #fff;
+}
+
+.chat-message {
+    padding: 8px 12px;
+    border-radius: 15px;
+    max-width: 80%;
+    word-wrap: break-word; /* Ensure long words break */
+    line-height: 1.4;
+}
+
+.user-message {
+    background-color: #dcf8c6;
+    align-self: flex-end;
+    border-bottom-right-radius: 5px;
+}
+
+.cat-message {
+    background-color: #e5e5ea; /* Slightly different background for cat */
+    align-self: flex-start;
+    border-bottom-left-radius: 5px;
+}
+
+#chat-input-area {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ccc;
+    background-color: #f0f0f0;
+}
+
+#chat-input {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+#chat-send-btn, #chat-close-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+}
+#chat-send-btn {
+    margin-left: 10px;
+}
+#chat-close-btn {
+    background-color: #ff6b6b; /* A different color for close */
+}
+
+#chat-send-btn:hover, #chat-close-btn:hover {
+    opacity: 0.9;
+}
+
+@keyframes subtle-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+.subtle-bob-animation {
+    animation: subtle-bob 0.5s ease-in-out 2; /* Runs twice */
+}
