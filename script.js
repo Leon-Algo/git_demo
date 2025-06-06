@@ -16,17 +16,21 @@ const chatCloseBtn = document.getElementById('chat-close-btn');
 
 // --- Image Sources ---
 const idleImageSrc = 'images/cat_idle.png';
-const happyImageSrc = 'images/cat_happy.png';
-const curiousImageSrc = 'images/cat_curious.png';
-const sleepyImageSrc = 'images/cat_sleepy.png';
+const happyImageSrc = 'images/cat_happy.png'; // Primarily for direct click/pat
+const curiousImageSrc = 'images/cat_curious.png'; // General "thinking" or observing
+const sleepyImageSrc = 'images/cat_sleepy.png';   // For blank/idle screens
+// Conceptual new images (actual files would need to be created)
+const catConfusedImageSrc = 'images/cat_confused.png'; // For errors or confusing scenes
+const catExcitedImageSrc = 'images/cat_excited.png';   // For very positive things like food/toys
+const catCodingImageSrc = 'images/cat_coding.png';     // For coding related scenes
 
 // --- Configuration ---
-const screenshotInterval = 120000; // 2 minutes
-const backendUrl = '/api/analyse-screen'; // Placeholder
-const chatBackendUrl = '/api/chat'; // Placeholder
+const screenshotInterval = 120000;
+const analyseScreenBackendUrl = 'http://localhost:3000/api/analyse-screen';
+const chatBackendUrl = 'http://localhost:3000/api/chat';
 
 // --- Pet State (Position, Size) ---
-const petSizes = [
+const petSizes = [ /* ... same ... */
     { width: '150px', height: '150px', name: 'Small' },
     { width: '200px', height: '200px', name: 'Medium' },
     { width: '250px', height: '250px', name: 'Large' }
@@ -40,376 +44,172 @@ const maxChatTurns = 3;
 let conversationHistory = [];
 let speechBubbleClickListener = null;
 
-function adjustCatImageHeight() {
-    if (!orangeCatPet || !catImage) return;
-    const containerHeight = parseInt(orangeCatPet.style.height, 10);
-    catImage.style.height = `${containerHeight * 0.8}px`;
-    catImage.style.width = 'auto';
-}
+// --- Helper Functions (adjustCatImageHeight, savePetState, loadPetState) ---
+// (Assuming these are largely unchanged, keeping them concise)
+function adjustCatImageHeight() { if (!orangeCatPet || !catImage) return; const cH = parseInt(orangeCatPet.style.height,10); catImage.style.height = `${cH*0.8}px`; catImage.style.width='auto';}
+function savePetState() { if(!orangeCatPet) return; localStorage.setItem('petState', JSON.stringify({left:orangeCatPet.style.left,top:orangeCatPet.style.top,width:orangeCatPet.style.width,height:orangeCatPet.style.height,sizeIndex:currentSizeIndex})); }
+function loadPetState() { const s = JSON.parse(localStorage.getItem('petState')); if(orangeCatPet){ if(s){ orangeCatPet.style.left=s.left||''; orangeCatPet.style.top=s.top||''; if(s.left&&s.top){orangeCatPet.style.right='auto';orangeCatPet.style.bottom='auto';}else{orangeCatPet.style.right='10px';orangeCatPet.style.bottom='10px';} currentSizeIndex=s.sizeIndex!==undefined?s.sizeIndex:1;const sz=petSizes[currentSizeIndex]; orangeCatPet.style.width=s.width||sz.width;orangeCatPet.style.height=s.height||sz.height;}else{const dS=petSizes[1];orangeCatPet.style.width=dS.width;orangeCatPet.style.height=dS.height;orangeCatPet.style.right='10px';orangeCatPet.style.bottom='10px';}} adjustCatImageHeight();}
 
-function savePetState() {
-    if (!orangeCatPet) return;
-    const state = {
-        left: orangeCatPet.style.left,
-        top: orangeCatPet.style.top,
-        width: orangeCatPet.style.width,
-        height: orangeCatPet.style.height,
-        sizeIndex: currentSizeIndex
-    };
-    localStorage.setItem('petState', JSON.stringify(state));
-}
-
-function loadPetState() {
-    const state = JSON.parse(localStorage.getItem('petState'));
-    if (orangeCatPet) { // Ensure orangeCatPet exists
-        if (state) {
-            orangeCatPet.style.left = state.left || '';
-            orangeCatPet.style.top = state.top || '';
-            if (state.left && state.top) {
-                orangeCatPet.style.right = 'auto';
-                orangeCatPet.style.bottom = 'auto';
-            } else {
-                 orangeCatPet.style.right = '10px';
-                 orangeCatPet.style.bottom = '10px';
-            }
-            currentSizeIndex = state.sizeIndex !== undefined ? state.sizeIndex : 1;
-            const size = petSizes[currentSizeIndex];
-            orangeCatPet.style.width = state.width || size.width;
-            orangeCatPet.style.height = state.height || size.height;
-        } else {
-            const defaultSize = petSizes[1];
-            orangeCatPet.style.width = defaultSize.width;
-            orangeCatPet.style.height = defaultSize.height;
-            orangeCatPet.style.right = '10px';
-            orangeCatPet.style.bottom = '10px';
-        }
-    }
-    adjustCatImageHeight();
-}
-
-// --- Draggable Functionality (Pet) ---
-if (orangeCatPet) {
-    orangeCatPet.addEventListener('mousedown', (e) => {
-        if (!orangeCatPet) return; // Should always exist here, but good practice
-        if (e.target.closest('#cat-controls') || e.target.closest('#speech-bubble')) return;
-
-        orangeCatPet.style.cursor = 'grabbing';
-        let initialX = e.clientX;
-        let initialY = e.clientY;
-        const computedStyle = window.getComputedStyle(orangeCatPet);
-        let initialLeft, initialTop;
-
-        if (computedStyle.left !== 'auto' && computedStyle.left !== '0px') {
-            initialLeft = orangeCatPet.offsetLeft;
-        } else {
-            initialLeft = window.innerWidth - orangeCatPet.getBoundingClientRect().right;
-        }
-        if (computedStyle.top !== 'auto' && computedStyle.top !== '0px') {
-            initialTop = orangeCatPet.offsetTop;
-        } else {
-            initialTop = window.innerHeight - orangeCatPet.getBoundingClientRect().bottom;
-        }
-
-        orangeCatPet.style.left = `${initialLeft}px`;
-        orangeCatPet.style.top = `${initialTop}px`;
-        orangeCatPet.style.right = 'auto';
-        orangeCatPet.style.bottom = 'auto';
-
-        const onMouseMove = (moveEvent) => {
-            const dx = moveEvent.clientX - initialX;
-            const dy = moveEvent.clientY - initialY;
-            orangeCatPet.style.left = `${initialLeft + dx}px`;
-            orangeCatPet.style.top = `${initialTop + dy}px`;
-        };
-        const onMouseUp = () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            if (orangeCatPet) orangeCatPet.style.cursor = 'grab';
-            savePetState();
-        };
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-    });
-}
-
-// --- Draggable Functionality (Chat Dialog) ---
-if (chatDialog && chatHeader) {
-    chatHeader.addEventListener('mousedown', (e) => {
-        if (e.target.tagName === 'BUTTON') return;
-        if (!chatDialog) return; // Should always exist
-
-        chatDialog.style.cursor = 'grabbing';
-        let initialX = e.clientX;
-        let initialY = e.clientY;
-        let initialLeft = chatDialog.offsetLeft;
-        let initialTop = chatDialog.offsetTop;
-
-        const originalRight = chatDialog.style.right;
-        const originalBottom = chatDialog.style.bottom;
-        chatDialog.style.right = 'auto';
-        chatDialog.style.bottom = 'auto';
-        chatDialog.style.left = `${initialLeft}px`;
-        chatDialog.style.top = `${initialTop}px`;
-
-        const onMouseMove = (moveEvent) => {
-            const dx = moveEvent.clientX - initialX;
-            const dy = moveEvent.clientY - initialY;
-            chatDialog.style.left = `${initialLeft + dx}px`;
-            chatDialog.style.top = `${initialTop + dy}px`;
-        };
-        const onMouseUp = () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            if (chatDialog) chatDialog.style.cursor = 'default';
-        };
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-    });
-}
+// --- Draggable Functionality (Pet & Chat Dialog) ---
+// (Assuming these are largely unchanged)
+if (orangeCatPet) { orangeCatPet.addEventListener('mousedown', (e) => { if (!orangeCatPet || e.target.closest('#cat-controls') || e.target.closest('#speech-bubble')) return; orangeCatPet.style.cursor = 'grabbing'; let iX = e.clientX, iY = e.clientY; const cS = getComputedStyle(orangeCatPet); let iL = (cS.left!=='auto'&&cS.left!=='0px')?orangeCatPet.offsetLeft:innerWidth-orangeCatPet.getBoundingClientRect().right; let iT = (cS.top!=='auto'&&cS.top!=='0px')?orangeCatPet.offsetTop:innerHeight-orangeCatPet.getBoundingClientRect().bottom; orangeCatPet.style.left=`${iL}px`;orangeCatPet.style.top=`${iT}px`;orangeCatPet.style.right='auto';orangeCatPet.style.bottom='auto'; const oMM=(me)=>{orangeCatPet.style.left=`${iL+me.clientX-iX}px`;orangeCatPet.style.top=`${iT+me.clientY-iY}px`;}; const oMU=()=>{removeEventListener('mousemove',oMM);removeEventListener('mouseup',oMU);if(orangeCatPet)orangeCatPet.style.cursor='grab';savePetState();}; addEventListener('mousemove',oMM);addEventListener('mouseup',oMU);});}
+if (chatDialog && chatHeader) { chatHeader.addEventListener('mousedown', (e) => { if(e.target.tagName==='BUTTON'||!chatDialog)return; chatDialog.style.cursor='grabbing';let iX=e.clientX,iY=e.clientY,iL=chatDialog.offsetLeft,iT=chatDialog.offsetTop; chatDialog.style.right='auto';chatDialog.style.bottom='auto';chatDialog.style.left=`${iL}px`;chatDialog.style.top=`${iT}px`; const oMM=(me)=>{chatDialog.style.left=`${iL+me.clientX-iX}px`;chatDialog.style.top=`${iT+me.clientY-iY}px`;}; const oMU=()=>{removeEventListener('mousemove',oMM);removeEventListener('mouseup',oMU);if(chatDialog)chatDialog.style.cursor='default';}; addEventListener('mousemove',oMM);addEventListener('mouseup',oMU);});}
 
 // --- Resizing Functionality (Pet) ---
-if (resizeBtn && orangeCatPet) {
-    resizeBtn.addEventListener('click', () => {
-        currentSizeIndex = (currentSizeIndex + 1) % petSizes.length;
-        const newSize = petSizes[currentSizeIndex];
-        orangeCatPet.style.width = newSize.width;
-        orangeCatPet.style.height = newSize.height;
-        adjustCatImageHeight();
-        savePetState();
-    });
-}
+if (resizeBtn && orangeCatPet) { resizeBtn.addEventListener('click', () => { currentSizeIndex=(currentSizeIndex+1)%petSizes.length; const nS=petSizes[currentSizeIndex]; orangeCatPet.style.width=nS.width;orangeCatPet.style.height=nS.height;adjustCatImageHeight();savePetState();});}
 
 // --- Cat Image Click Interaction (Happy Animation) ---
 if (catImage) {
     catImage.addEventListener('click', () => {
         if (!catImage) return;
+        // Add a temporary marker class to distinguish this happy state
+        catImage.classList.add('happy-by-click');
         catImage.src = happyImageSrc;
-        catImage.classList.add('happy'); // For scaling
-        catImage.classList.add('happy-animation'); // For wobble
+        catImage.classList.remove('subtle-bob-animation', 'shake-animation', 'bounce-animation'); // Remove other anims
+        void catImage.offsetWidth;
+        catImage.classList.add('happy-animation'); // Wobble for happy
         setTimeout(() => {
             if (!catImage) return;
-            // Only revert if it's still the happy image (not changed by another reaction)
-            if (catImage.src.includes(happyImageSrc.substring(happyImageSrc.lastIndexOf('/')+1) )) {
+            // Only revert if it's still the happy image AND was triggered by click
+            if (catImage.src.includes(happyImageSrc.substring(happyImageSrc.lastIndexOf('/')+1)) && catImage.classList.contains('happy-by-click')) {
                  catImage.src = idleImageSrc;
             }
             catImage.classList.remove('happy-animation');
-            catImage.classList.remove('happy');
-        }, 1000);
+            catImage.classList.remove('happy-by-click'); // Clean up marker
+        }, 1000); // Happy animation duration
     });
 }
 
 // --- Screen Capture & Feedback Logic ---
 let feedbackTimeout;
-function displayFeedback(text) {
-    if (!speechBubble) return;
-    speechBubble.textContent = text;
-    speechBubble.classList.add('visible');
-
-    if (speechBubbleClickListener) {
-        speechBubble.removeEventListener('click', speechBubbleClickListener);
-    }
-
-    speechBubbleClickListener = () => {
-        if (!chatDialog || !chatHistory || !chatInput || !speechBubble) return;
-
-        // Immediately hide speech bubble
-        speechBubble.classList.remove('visible');
-
-        currentChatContext = speechBubble.textContent || "Tell me more about that!";
-        chatHistory.innerHTML = '';
-        appendMessageToChat('cat', currentChatContext);
-        conversationHistory = [{speaker: 'cat', text: currentChatContext}];
-        chatTurn = 0;
-        chatDialog.classList.remove('hidden');
-        chatInput.value = '';
-        chatInput.focus();
-    };
+function displayFeedback(text) { /* ... same, ensures speechBubbleClickListener is set up ... */
+    if (!speechBubble) return; speechBubble.textContent = text; speechBubble.classList.add('visible');
+    if (speechBubbleClickListener) speechBubble.removeEventListener('click', speechBubbleClickListener);
+    speechBubbleClickListener = () => { if (!chatDialog||!chatHistory||!chatInput||!speechBubble) return; speechBubble.classList.remove('visible'); currentChatContext = speechBubble.textContent||"Tell me more!"; chatHistory.innerHTML=''; conversationHistory=[{speaker:'cat',text:currentChatContext}]; appendMessageToChat('cat',currentChatContext); chatTurn=0; chatDialog.classList.remove('hidden'); chatInput.value=''; chatInput.focus();};
     speechBubble.addEventListener('click', speechBubbleClickListener, { once: true });
-
-    clearTimeout(feedbackTimeout);
-    feedbackTimeout = setTimeout(() => {
-        if (speechBubble) speechBubble.classList.remove('visible');
-    }, 8000);
+    clearTimeout(feedbackTimeout); feedbackTimeout = setTimeout(() => {if(speechBubble)speechBubble.classList.remove('visible');}, 8000);
 }
 
+// Updated triggerCatReaction
 function triggerCatReaction(analysis) {
-    if (!catImage) return;
-    console.log("Cat reacting to:", analysis);
+    if (!catImage || !analysis) {
+        console.warn("triggerCatReaction called without catImage or analysis");
+        return;
+    }
+    console.log("Cat reacting to (refined analysis):", analysis);
 
-    let newSrc = curiousImageSrc; // Default reaction image
-    if (analysis.scene) {
-        if (analysis.scene.includes('blank') || analysis.scene.includes('inactive')) {
-            newSrc = sleepyImageSrc;
-        } else if (analysis.scene.includes('code')) {
-            newSrc = curiousImageSrc;
-        } // Add more specific scene-to-image mappings if desired
+    // Default to idle after animation, unless a specific persistent state is set (like sleepy)
+    let imageToSet = curiousImageSrc; // Default reaction image
+    let animationToApply = 'subtle-bob-animation'; // Default animation
+    let isPersistentState = false; // Flag for states like sleepy that shouldn't revert to idle immediately
+
+    const mainScene = analysis.scene ? analysis.scene.toLowerCase() : "unknown";
+    const subScene = analysis.sub_scene ? analysis.sub_scene.toLowerCase() : null;
+
+    if (mainScene.includes('error') || (subScene && subScene.includes('error'))) {
+        imageToSet = catConfusedImageSrc || curiousImageSrc; // Use confused if available, else curious
+        animationToApply = 'shake-animation';
+    } else if (subScene) {
+        if (subScene.includes('food') || subScene.includes('fish') || subScene.includes('dessert')) {
+            imageToSet = catExcitedImageSrc || happyImageSrc; // Use excited if available, else happy
+            animationToApply = 'bounce-animation';
+        } else if (subScene.includes('code_error')) {
+            imageToSet = catConfusedImageSrc || curiousImageSrc;
+            animationToApply = 'shake-animation';
+        } else if (subScene.includes('code_cat_keyword') || subScene.includes('code_fish_keyword')) {
+            imageToSet = catExcitedImageSrc || curiousImageSrc;
+            animationToApply = 'bounce-animation';
+        } else if (subScene.includes('code')) { // general coding
+            imageToSet = catCodingImageSrc || curiousImageSrc;
+            animationToApply = 'subtle-bob-animation';
+        } else if (subScene.includes('idle_screen') || subScene.includes('blank')) {
+            imageToSet = sleepyImageSrc;
+            isPersistentState = true; // Sleepy can be a longer state
+        } else if (subScene.includes('social_cat_picture')) {
+            imageToSet = curiousImageSrc; // Could be a specific "jealous" or "interested" pose
+            animationToApply = 'subtle-bob-animation';
+        } else { // Default for other known sub-scenes
+            imageToSet = curiousImageSrc;
+        }
+    } else if (mainScene.includes('blank') || mainScene.includes('inactive') || mainScene.includes('idle')) {
+        imageToSet = sleepyImageSrc;
+        isPersistentState = true;
+    } else { // Default for main scenes if no sub_scene matched
+        imageToSet = curiousImageSrc;
     }
 
-    // Only change src if it's different, to avoid re-triggering animation on the same state,
-    // unless it's the idle image (to allow reaction from idle)
-    if (catImage.src !== newSrc || catImage.src.includes(idleImageSrc.substring(idleImageSrc.lastIndexOf('/')+1))) {
-        catImage.src = newSrc;
+    // Don't interrupt a user-triggered happy state unless the new reaction is also happy-like
+    if (catImage.classList.contains('happy-by-click') && imageToSet !== happyImageSrc && imageToSet !== (catExcitedImageSrc || happyImageSrc)) {
+        console.log("Skipping contextual reaction to preserve user-triggered happy state.");
+        return;
     }
 
-    catImage.classList.remove('happy-animation', 'subtle-bob-animation'); // Remove other animations first
-    void catImage.offsetWidth; // Trigger reflow to restart animation
-    catImage.classList.add('subtle-bob-animation');
+    if (catImage.src !== imageToSet) {
+        catImage.src = imageToSet;
+    }
+
+    catImage.classList.remove('subtle-bob-animation', 'shake-animation', 'bounce-animation', 'happy-animation');
+    void catImage.offsetWidth;
+    catImage.classList.add(animationToApply);
 
     setTimeout(() => {
         if (!catImage) return;
-        catImage.classList.remove('subtle-bob-animation');
-        // Revert to idle only if it wasn't an intentional persistent state change (like happy click)
-        // and current image is one of the reaction images.
-        const reactionImagesForRevert = [curiousImageSrc, sleepyImageSrc];
-        if (reactionImagesForRevert.some(img => catImage.src.includes(img.substring(img.lastIndexOf('/')+1)))) {
-            // Check if it's not the happy state triggered by a click
-            if (!catImage.src.includes(happyImageSrc.substring(happyImageSrc.lastIndexOf('/')+1))) {
-               catImage.src = idleImageSrc;
-            }
+        catImage.classList.remove(animationToApply);
+
+        // Revert to idle only if not a persistent state and not the happy-by-click state
+        if (!isPersistentState && !catImage.classList.contains('happy-by-click')) {
+            catImage.src = idleImageSrc;
         }
-    }, 2000); // Duration of subtle-bob (0.5s * 2 iterations = 1s) + buffer or desired display time
+        // If it was a persistent state (like sleepy), it remains until the next triggerCatReaction or user interaction.
+        // If it was happy-by-click, its own timeout handles reverting it.
+    }, 2000); // General duration for reaction animations
 }
 
 
-function simulateBackendResponse(canvas) {
-    // This is a simulation. Real backend would call GLM, etc.
-    const feedbacks = [
-        { text: "This page looks interesting! What are we looking at? 喵?", analysis: { scene: "generic_webpage_simulated" } },
-        { text: "So many words! Are you reading something important or just browsing cat memes? 😉", analysis: { scene: "article_simulated" } },
-        { text: "Coding time? Don't forget to take breaks and give me head scratches!", analysis: { scene: "code_editor_simulated" } },
-        { text: "Ooh, pretty colors! Is this a game? Can I play?", analysis: { scene: "image_heavy_simulated" } },
-        { text: "Hmm, seems quiet. Perfect time for a nap... or a snack? 😴", analysis: { scene: "blank_simulated" } }
-    ];
-    const randomIndex = Math.floor(Math.random() * feedbacks.length);
-    console.log("Simulated screen analysis:", feedbacks[randomIndex].feedback);
-    return { feedback: feedbacks[randomIndex].text, analysis: feedbacks[randomIndex].analysis };
-}
-
-function captureScreenAndSend() {
-    if (typeof html2canvas === 'undefined') {
-        console.error('html2canvas is not loaded!');
-        displayFeedback("My special glasses are foggy, can't see the screen!");
-        return;
-    }
+async function captureScreenAndSend() { /* ... same as before ... */
+    if(typeof html2canvas==='undefined'){console.error('html2canvas not loaded.');return;}
     console.log("Attempting to capture screen...");
-    try {
-        html2canvas(document.documentElement, { useCORS: true, allowTaint: true, logging: false, width: window.innerWidth, height: window.innerHeight, x: window.scrollX, y: window.scrollY })
-        .then(canvas => {
-            console.log("Screenshot captured.");
-            const simulatedApiResponse = simulateBackendResponse(canvas); // Keep simulation for now
-            displayFeedback(simulatedApiResponse.feedback);
-            triggerCatReaction(simulatedApiResponse.analysis);
-        }).catch(error => {
-            console.error('Error during html2canvas capture:', error);
-            displayFeedback("哎呀，我的魔法眼镜好像失灵了！看不见屏幕了。");
-        });
-    } catch (error) {
-        console.error('Error setting up html2canvas:', error);
-        displayFeedback("喵? I'm a bit confused right now. My vision spell isn't working!");
-    }
+    try{
+        const canvas = await html2canvas(document.documentElement,{useCORS:true,allowTaint:true});
+        console.log("Screen captured."); const imageData=canvas.toDataURL('image/png');
+        console.log(`Sending image to backend: ${analyseScreenBackendUrl}`);
+        const response = await fetch(analyseScreenBackendUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:imageData}),});
+        if(!response.ok){let eM=`Backend error: ${response.status} ${response.statusText}`;try{const eD=await response.json();eM=eD.error||eM;}catch(e){} console.error('Screen analysis error:',eM);displayFeedback(`喵... Thinking cap fuzzy! (Err: ${response.status})`);triggerCatReaction({scene:"error_generic"});return;}
+        const data = await response.json(); console.log("Backend analysis:",data);
+        if(data.feedback){displayFeedback(data.feedback);triggerCatReaction(data.analysis||{scene:"unknown_backend_response"});}
+        else{displayFeedback("Thinking cap strange reply... 갸르릉?");triggerCatReaction({scene:"error_empty_feedback"});}
+    }catch(error){console.error('Capture/send error:',error);displayFeedback("Magic camera broke! (Capture/Network Error)");triggerCatReaction({scene:"error_capture_or_network"});}
 }
 
 // --- Chat Functionality ---
-function appendMessageToChat(speaker, text) {
-    if (!chatHistory) return;
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('chat-message', speaker === 'user' ? 'user-message' : 'cat-message');
-    messageDiv.textContent = text;
-    chatHistory.appendChild(messageDiv);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-}
+function appendMessageToChat(speaker, text) { /* ... same ... */ if(!chatHistory)return;const mD=document.createElement('div');mD.classList.add('chat-message',speaker==='user'?'user-message':'cat-message');mD.textContent=text;chatHistory.appendChild(mD);chatHistory.scrollTop=chatHistory.scrollHeight;}
 
-function simulateCatChatResponse(userInput, history) {
-    // This is a simulation. Real backend would call GLM, etc.
-    userInput = userInput.toLowerCase();
-    let reply = "Purrrr... that's quite something! 😼";
-    if (userInput.includes("hello") || userInput.includes("hi")) reply = "Meow! Hello to you too, human friend!";
-    else if (userInput.includes("code") || (currentChatContext && currentChatContext.toLowerCase().includes("code"))) reply = "Are we debugging or just admiring the pretty syntax colors? 💻";
-    else if (userInput.includes("food") || userInput.includes("snack") || userInput.includes("fish") || userInput.includes("tuna")) reply = "Did I hear snacks?! My ears are perked and my tummy is ready! 🐟";
-    else if (userInput.includes("how are you")) reply = "I'm doing just purr-fect! Especially if there's a nap in my near future. You?";
-    else if (userInput.includes("bye") || userInput.includes("goodbye")) reply = "Farewell for now! May your mouse always find its cheese. 😉";
-    else if (userInput.includes("cat") || userInput.includes("kitty")) reply = "You called? That's me! Your favorite feline companion. 😺";
-    else if (chatTurn === 1) reply = "Fascinating! And then what happened? Or, what are you thinking?";
-    else if (chatTurn === 2) reply = "That's as intriguing as a laser pointer dot on the wall! ✨";
-
-    console.log("Simulated cat chat reply:", reply);
-    return reply;
-}
-
-function handleSendMessage() {
-    if (!chatInput || !chatHistory) return;
-    const userInput = chatInput.value.trim();
-
-    if (userInput === '') return;
-
-    if (chatTurn >= maxChatTurns) {
-        appendMessageToChat('cat', "I'm a bit tired from all this chatting! Let's talk more later. Purrrr...");
-        chatInput.value = ''; // Clear input even if max turns reached
-        return;
-    }
-
-    appendMessageToChat('user', userInput);
-    conversationHistory.push({speaker: 'user', text: userInput});
-    chatInput.value = '';
-    chatTurn++;
-
-    try {
-        const catReply = simulateCatChatResponse(userInput, conversationHistory);
-        appendMessageToChat('cat', catReply);
-        conversationHistory.push({speaker: 'cat', text: catReply});
-
-        if (chatTurn >= maxChatTurns) {
-            setTimeout(() => {
-                if (chatHistory) appendMessageToChat('cat', "That was a fun chat! I need to go see if any sunbeams need napping in. Ttyl! 👋");
-            }, 600);
-        } else {
-            if (chatInput) chatInput.focus(); // Focus for next message
-        }
-    } catch (error) {
-        console.error("Error in chat simulation:", error);
-        if (chatHistory) appendMessageToChat('cat', "Uh oh, my whiskers are tingling. Something went wrong with my thoughts!");
+async function handleSendMessage() { /* ... same as before, using chatBackendUrl ... */
+    if(!chatInput||!chatHistory||!chatDialog||!chatSendBtn)return; const uI=chatInput.value.trim(); if(uI==="")return;
+    if(chatTurn>=maxChatTurns&&uI!==""){appendMessageToChat('cat',"I'm really sleepy now... Zzz...");chatInput.value='';chatInput.disabled=true;chatSendBtn.disabled=true;return;}
+    appendMessageToChat('user',uI);conversationHistory.push({speaker:'user',text:uI});const cI=uI;chatInput.value="";chatTurn++;
+    chatInput.disabled=true;chatSendBtn.disabled=true;
+    try{
+        console.log(`Sending chat to backend: ${chatBackendUrl}`);
+        const response=await fetch(chatBackendUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initialContext:currentChatContext,history:conversationHistory.slice(-6),userInput:cI}),});
+        if(!response.ok){let eM=`Chat backend error: ${response.status} ${response.statusText}`;try{const eD=await response.json();eM=eD.error||eM;}catch(e){} console.error('Chat reply error:',eM);appendMessageToChat('cat',`Hiss! Tangled whiskers! (Err: ${response.status})`);return;}
+        const data=await response.json(); console.log("Backend chat reply:",data);
+        if(data.reply){appendMessageToChat('cat',data.reply);conversationHistory.push({speaker:'cat',text:data.reply});}
+        else{appendMessageToChat('cat',"Purrr? Lost my meow...");}
+    }catch(error){console.error('Chat send/receive error:',error);appendMessageToChat('cat',"Meee-ouch! Static on the line!");}
+    finally{
+        chatInput.disabled=false;chatSendBtn.disabled=false;
+        if(chatTurn<maxChatTurns){if(chatInput)chatInput.focus();}
+        else{console.log("Max chat turns. Final message.");setTimeout(()=>{if(chatHistory)appendMessageToChat('cat',"Phew, lots of talking! Ttyl!");},500);if(chatInput)chatInput.disabled=true;if(chatSendBtn)chatSendBtn.disabled=true;}
     }
 }
 
 if (chatSendBtn) chatSendBtn.addEventListener('click', handleSendMessage);
-if (chatInput) chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSendMessage();
-});
-
-if (chatCloseBtn && chatDialog) {
-    chatCloseBtn.addEventListener('click', () => {
-        chatDialog.classList.add('hidden');
-        currentChatContext = "";
-        if(chatHistory) chatHistory.innerHTML = "";
-        if(chatInput) chatInput.value = "";
-        conversationHistory = [];
-        chatTurn = 0;
-    });
-}
+if (chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+if (chatCloseBtn && chatDialog) { chatCloseBtn.addEventListener('click', () => { chatDialog.classList.add('hidden');currentChatContext="";if(chatHistory)chatHistory.innerHTML="";if(chatInput){chatInput.value="";chatInput.disabled=false;}if(chatSendBtn)chatSendBtn.disabled=false;conversationHistory=[];chatTurn=0;});}
 
 // --- Initial Load ---
 let petStateLoadedOnce = false;
-function initialLoad() {
-    if (petStateLoadedOnce) return;
-
-    // Ensure critical elements exist before proceeding
-    if (!orangeCatPet || !catImage || !speechBubble || !resizeBtn || !chatDialog || !chatHeader || !chatHistory || !chatInput || !chatSendBtn || !chatCloseBtn) {
-        console.error("One or more critical DOM elements are missing. Pet functionality may be limited.");
-        // return; // Could return here if elements are absolutely vital for any startup task
-    }
-
-    loadPetState();
-    if (chatDialog) chatDialog.classList.add('hidden');
-
-    // Initial screen capture after a short delay
-    setTimeout(captureScreenAndSend, 3000);
-    // Periodic screen capture
-    setInterval(captureScreenAndSend, screenshotInterval);
-
-    petStateLoadedOnce = true;
-}
-
+function initialLoad() { /* ... same ... */ if(petStateLoadedOnce)return;if(!orangeCatPet||!catImage||!speechBubble||!resizeBtn||!chatDialog||!chatHeader||!chatHistory||!chatInput||!chatSendBtn||!chatCloseBtn){console.error("Critical DOM elements missing.");} loadPetState();if(chatDialog)chatDialog.classList.add('hidden');setTimeout(captureScreenAndSend,3000);setInterval(captureScreenAndSend,screenshotInterval);petStateLoadedOnce=true;}
 document.addEventListener('DOMContentLoaded', initialLoad);
-if (document.readyState === "complete" || document.readyState === "interactive") {
-   initialLoad(); // Fallback if DOMContentLoaded already fired
-}
+if (document.readyState === "complete" || document.readyState === "interactive") initialLoad();

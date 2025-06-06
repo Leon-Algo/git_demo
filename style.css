@@ -175,3 +175,20 @@
 .subtle-bob-animation {
     animation: subtle-bob 0.5s ease-in-out 2; /* Runs twice */
 }
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25%, 75% { transform: translateX(-4px); }
+    50% { transform: translateX(4px); }
+}
+.shake-animation {
+    animation: shake 0.3s ease-in-out 2; /* Runs twice, quick shake */
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-6px) scale(1.05); }
+}
+.bounce-animation {
+    animation: bounce 0.4s ease-in-out 2; /* Runs twice, slight bounce */
+}
